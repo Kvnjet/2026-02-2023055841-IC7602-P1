@@ -16,14 +16,13 @@ import java.util.concurrent.ExecutorService;
  * Body:     {"data": "<paquete DNS en BASE64>"}
  * Response: {"data": "<respuesta DNS en BASE64>"}
  *
- * El trabajo de red (UDP) se delega al executor de hilos virtuales para no
- * bloquear el hilo HTTP mientras se espera al servidor DNS remoto, lo que
- * permite atender múltiples solicitudes de forma simultánea.
+ * El trabajo del UDP se delega al executor de hilos virtuales para no
+ * bloquear el hilo HTTP mientras se espere al servidor DNS remoto,
+ * permite atender múltiples solicitudes al mismo tiempo.
  *
- * Nota: la forma exacta de manejar respuestas asíncronas (`ctx.future(...)`)
- * puede variar levemente según la versión de Javalin fijada en el pom.xml;
- * revisar la documentación de la versión exacta que use el equipo si este
- * método no compila tal cual.
+ * la forma exacta de manejar respuestas asíncronas (`ctx.future(...)`)
+ * varia según la versión de Javalin fijada en el pom.xml
+ * revisar la documentación si este método no compila tal cual.
  */
 public class DnsResolverHandler implements Handler {
 
