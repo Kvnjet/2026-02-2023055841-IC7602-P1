@@ -1,7 +1,8 @@
 mod dns_api;
 
 pub mod dns_interceptor {
-    use pcap::{Capture};
+
+use pcap::{Capture};
     use dns_parser::{Packet as DnsPacket};
     use std::collections::HashMap;
     use std::net::IpAddr;
@@ -16,6 +17,30 @@ pub mod dns_interceptor {
         pub query_name: String,
         pub source_ip: IpAddr,
         pub source_port: u16,
+        pub header: dns_parser::Header,
+    }
+
+    //Cuerpo facil para formatear el output
+
+    impl std::fmt::Display for DnsRequest {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let h = &self.header;
+            write!(
+                f,
+                "{} from {}:{} | id={} QR={} opcode={:?} rcode={:?} rd={} qd={} an={}",
+                self.query_name,
+                self.source_ip,
+                self.source_port,
+                h.id,
+                if h.query { 0 } else { 1 }, //Es el QR, si aca de 0 es query a lo que entendi, si no es respuesta
+                h.opcode,
+                h.response_code,
+                h.recursion_desired as u8,
+                h.questions,
+                h.answers,
+            )?;
+            Ok(())
+        }
     }
 
     // Estructura para guardar las estadisticas del interceptor
@@ -135,9 +160,9 @@ pub mod dns_interceptor {
 
         // Sin esto le cuesta cerrarse
         ctrlc::set_handler(move || {
-            println!("Shutting down...");
+            println!("Cerrando...");
             r.store(false, Ordering::SeqCst);
-        }).expect("Error setting Ctrl-C handler");
+        }).expect("Imposible de cerrar, lo siento, es mas sudo que yo");
 
 
         let stats = Arc::new(Mutex::new(Stats::new()));
@@ -181,7 +206,7 @@ pub mod dns_interceptor {
                 Ok(packet) => {
 
                     if let Some(dns_request) = parse_dns_packet(&packet.data) {
-                        println!("DNS Request: {} from {}:{}.", dns_request.query_name, dns_request.source_ip, dns_request.source_port);
+                        println!("DNS: {}", dns_request); 
                         
                         // Updatea
                         let mut stats = stats.lock().unwrap();
@@ -189,12 +214,12 @@ pub mod dns_interceptor {
                         stats.add_request_by_domain(dns_request.query_name);
                     } else {
                         if args.debug {
-                            println!("Non-DNS packet received: {} bytes", packet.data.len());
+                            println!("Un no DNS: {} bytes", packet.data.len());
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error receiving packet: {}", e);
+                    eprintln!("Error con el pack-ete: {}", e);
                     break;
                 }
             }
@@ -206,67 +231,65 @@ pub mod dns_interceptor {
 
         let stats = stats.lock().unwrap();
         print_final_stats(&stats);
-        println!("DNS Interceptor stopped.");
+        println!("Ya ya, detenido el arroz.");
     }
 
     fn parse_dns_packet(packet: &[u8]) -> Option<DnsRequest> {
     // Minimum: Ethernet (14) + IPv4 (20) + UDP (8) = 42 bytes
-    if packet.len() < 42 {
-        return None;
-    }
-
-    // Revisa que sea ipv4
-    if packet[12] != 0x08 || packet[13] != 0x00 {
-        return None;
-    }
-
-    let ip_start = 14;
-
-    // IPv4 length del header
-    let ihl = ((packet[ip_start] & 0x0f) as usize) * 4;
-    if ihl < 20 {
-        return None;
-    }
-
-    // El protocolo de UDP que sea 17
-    if packet[ip_start + 9] != 17 {
-        return None;
-    }
-
-    // LA IP de donde viene
-    let src_ip = std::net::Ipv4Addr::new(
-        packet[ip_start + 12],
-        packet[ip_start + 13],
-        packet[ip_start + 14],
-        packet[ip_start + 15],
-    );
-
-    let udp_start = ip_start + ihl;
-    if packet.len() < udp_start + 8 {
-        return None;
-    }
-
-    let src_port = u16::from_be_bytes([packet[udp_start], packet[udp_start + 1]]);
-
-    let dns_start = udp_start + 8;
-    let dns_payload = &packet[dns_start..];
-
-    match DnsPacket::parse(dns_payload) {
-        Ok(dns_packet) => {
-            if dns_packet.header.query {
-                if let Some(question) = dns_packet.questions.first() {
-                    return Some(DnsRequest {
-                        query_name: question.qname.to_string(),
-                        source_ip: src_ip.into(),
-                        source_port: src_port,
-                    });
-                }
-            }
+        if packet.len() < 42 {
+            return None;
         }
-        Err(_) => return None,
-    }
 
-    None
+        // Revisa que sea ipv4
+        if packet[12] != 0x08 || packet[13] != 0x00 {
+            return None;
+        }
+
+        let ip_start = 14;
+
+        // IPv4 length del header
+        let ihl = ((packet[ip_start] & 0x0f) as usize) * 4;
+        if ihl < 20 {
+            return None;
+        }
+
+        // El protocolo de UDP que sea 17
+        if packet[ip_start + 9] != 17 {
+            return None;
+        }
+
+        // LA IP de donde viene
+        let src_ip = std::net::Ipv4Addr::new(
+            packet[ip_start + 12],
+            packet[ip_start + 13],
+            packet[ip_start + 14],
+            packet[ip_start + 15],
+        );
+
+        let udp_start = ip_start + ihl;
+        if packet.len() < udp_start + 8 {
+            return None;
+        }
+
+        let src_port = u16::from_be_bytes([packet[udp_start], packet[udp_start + 1]]);
+
+        let dns_start = udp_start + 8;
+        let dns_payload = &packet[dns_start..];
+
+        let dns_packet = DnsPacket::parse(dns_payload).ok()?;
+
+        if !dns_packet.header.query {
+            return None;
+        }
+
+        let question = dns_packet.questions.first()?;
+
+        Some(DnsRequest {
+            query_name: question.qname.to_string(),
+            source_ip: src_ip.into(),
+            source_port: src_port,
+            header: dns_packet.header,
+        })
 }
 }
 
