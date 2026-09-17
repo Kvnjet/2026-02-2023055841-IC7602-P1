@@ -1,0 +1,14 @@
+services:
+  dns-api:
+    build:
+      context: ../DNS API
+    ports:
+      - "8080:8080"
+    environment:
+      DNS_API_PORT: 8080
+      REMOTE_DNS_SERVER: 8.8.8.8
+      REMOTE_DNS_PORT: 53
+      UDP_TIMEOUT_MS: 2000
+      DB_PROVIDER: supabase
+      DB_URL: ${DB_URL}
+      DB_API_KEY: ${DB_API_KEY}
