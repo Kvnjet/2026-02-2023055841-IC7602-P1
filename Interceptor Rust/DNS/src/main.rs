@@ -2,13 +2,13 @@ mod dns_api;
 
 pub mod dns_interceptor {
 
-use pcap::{Capture};
-    use dns_parser::{Packet as DnsPacket};
+    use pcap::{Capture};
+    use dns_parser::{Packet as DnsPacket, Opcode};
     use std::collections::HashMap;
     use std::net::IpAddr;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
-    use std::thread;
+    use std::{println, thread};
     use std::time::{Duration};
 
     // Estructura del DNS
@@ -17,7 +17,11 @@ use pcap::{Capture};
         pub query_name: String,
         pub source_ip: IpAddr,
         pub source_port: u16,
+        pub qtype: dns_parser::QueryType,
+        pub qclass: dns_parser::QueryClass,
         pub header: dns_parser::Header,
+        pub raw_payload: Vec<u8>, // Todo lo del DNS para que la API se pegue con el
+
     }
 
     //Cuerpo facil para formatear el output
@@ -27,7 +31,7 @@ use pcap::{Capture};
             let h = &self.header;
             write!(
                 f,
-                "{} from {}:{} | id={} QR={} opcode={:?} rcode={:?} rd={} qd={} an={}",
+                "{} from {}:{} | id={} QR={} opcode={:?} rcode={:?} qtype={:?} rd={} qd={} an={}",
                 self.query_name,
                 self.source_ip,
                 self.source_port,
@@ -35,6 +39,7 @@ use pcap::{Capture};
                 if h.query { 0 } else { 1 }, //Es el QR, si aca de 0 es query a lo que entendi, si no es respuesta
                 h.opcode,
                 h.response_code,
+                self.qtype,
                 h.recursion_desired as u8,
                 h.questions,
                 h.answers,
@@ -160,7 +165,7 @@ use pcap::{Capture};
 
         // Sin esto le cuesta cerrarse
         ctrlc::set_handler(move || {
-            println!("Cerrando...");
+            println!(" Ya ya ya se esta cerrando...");
             r.store(false, Ordering::SeqCst);
         }).expect("Imposible de cerrar, lo siento, es mas sudo que yo");
 
@@ -206,15 +211,29 @@ use pcap::{Capture};
                 Ok(packet) => {
 
                     if let Some(dns_request) = parse_dns_packet(&packet.data) {
-                        println!("DNS: {}", dns_request); 
-                        
-                        // Updatea
-                        let mut stats = stats.lock().unwrap();
-                        stats.increment_total();
-                        stats.add_request_by_domain(dns_request.query_name);
-                    } else {
-                        if args.debug {
-                            println!("Un no DNS: {} bytes", packet.data.len());
+                        if dns_request.header.query {
+                            //updatea
+                            let mut stats = stats.lock().unwrap();
+                            stats.increment_total();
+                            stats.add_request_by_domain(dns_request.query_name.clone());
+                            drop(stats);   //si amas algo dejalo ir o algo asi
+
+                            // Classify the query
+                            let is_standard =
+                                dns_request.header.opcode == Opcode::StandardQuery;
+                            if is_standard{
+                                println!("Standar {}", dns_request);
+                                // Mae aca falta lo de la API pero no se puede aun, tlabajen.
+                            }
+                            else{
+                                println!("No standar {}", dns_request);
+
+                                use base64::{engine::general_purpose, Engine as _};
+                                let codificado = general_purpose::STANDARD.encode(&dns_request.raw_payload);
+                                println!{
+                                    "Aca pondria mi post SI TUVIERA MI API PARA HACERLE POST {}", codificado.len(), "bytes"
+                                }
+                            }
                         }
                     }
                 }
@@ -226,7 +245,7 @@ use pcap::{Capture};
         }
 
         if let Err(e) = stats_thread.join() {
-            eprintln!("Error joining stats thread: {:?}", e);
+            eprintln!("Error con las stats. {:?}", e);
         }
 
         let stats = stats.lock().unwrap();
@@ -278,17 +297,24 @@ use pcap::{Capture};
 
         let dns_packet = DnsPacket::parse(dns_payload).ok()?;
 
+        //Filtro para que solo agarre queries, respuestas no importa
         if !dns_packet.header.query {
             return None;
         }
 
         let question = dns_packet.questions.first()?;
+        let query_name = question.qname.to_string();
+        let qtype = question.qtype;
+        let qclass = question.qclass;
 
         Some(DnsRequest {
-            query_name: question.qname.to_string(),
+            query_name,
             source_ip: src_ip.into(),
             source_port: src_port,
+            qtype,
+            qclass,
             header: dns_packet.header,
+            raw_payload: dns_payload.to_vec(),
         })
 }
 }
