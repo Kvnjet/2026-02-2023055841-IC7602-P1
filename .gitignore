@@ -10,3 +10,4 @@ HealthChecker/bin/
 HealthChecker/*.o
 HealthChecker/*.exe
 HealthChecker/tests/*.exe
+firebase-data/
