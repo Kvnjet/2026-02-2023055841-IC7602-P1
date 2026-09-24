@@ -231,7 +231,7 @@ pub mod dns_interceptor {
                                 use base64::{engine::general_purpose, Engine as _};
                                 let codificado = general_purpose::STANDARD.encode(&dns_request.raw_payload);
                                 println!{
-                                    "Aca pondria mi post SI TUVIERA MI API PARA HACERLE POST {}", codificado.len(), "bytes"
+                                    "Aca pondria mi post SI TUVIERA MI API PARA HACERLE POST {} bytes", codificado.len() 
                                 }
                             }
                         }
