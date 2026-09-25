@@ -1,7 +1,0 @@
-.env
-.env.*
-!.env.example
-bin/
-secrets/
-*.exe
-*.o
