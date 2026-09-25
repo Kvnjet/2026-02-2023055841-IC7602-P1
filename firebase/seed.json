@@ -1,0 +1,21 @@
+{
+  "dnsRecords": {
+    "record-tcp-001": {
+      "hostname": "local-tcp.test",
+      "type": "single",
+      "enabled": true,
+      "targets": {
+        "target-001": {
+          "address": "127.0.0.1",
+          "port": 8081,
+          "healthCheck": {
+            "protocol": "tcp",
+            "timeoutMs": 2000,
+            "retries": 2,
+            "intervalSeconds": 30
+          }
+        }
+      }
+    }
+  }
+}

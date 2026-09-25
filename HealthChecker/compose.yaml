@@ -1,0 +1,20 @@
+services:
+  health-checker:
+    image: ic7602-health-checker:local
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        read_only: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    stop_grace_period: 10s
