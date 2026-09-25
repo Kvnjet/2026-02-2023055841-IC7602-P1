@@ -1,0 +1,13 @@
+target/
+**/target/
+.env
+.env.local
+firebase-debug.log
+*-debug.log
+firebase-service-account*.json
+HealthChecker/secrets/
+HealthChecker/bin/
+HealthChecker/*.o
+HealthChecker/*.exe
+HealthChecker/tests/*.exe
+firebase-data/
