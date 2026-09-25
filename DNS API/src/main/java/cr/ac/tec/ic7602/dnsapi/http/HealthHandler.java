@@ -5,10 +5,10 @@ import io.javalin.http.Handler;
 
 import java.util.Map;
 
-/** GET /health es usado por el healthcheck de Docker Compose / Kubernetes. */
+/** GET /health: usado por el healthcheck de Docker Compose / Kubernetes. */
 public class HealthHandler implements Handler {
     @Override
     public void handle(Context ctx) {
-        ctx.json(Map.of("status", "UP"));
+        Json.send(ctx, 200, Map.of("status", "UP"));
     }
 }

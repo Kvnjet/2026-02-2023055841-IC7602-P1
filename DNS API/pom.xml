@@ -52,6 +52,13 @@
     <build>
         <finalName>dns-api</finalName>
         <plugins>
+            <!-- Ejecuta las pruebas JUnit 5 con mvn test -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
             <!-- Empaqueta un JAR ejecutable con todas las dependencias -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

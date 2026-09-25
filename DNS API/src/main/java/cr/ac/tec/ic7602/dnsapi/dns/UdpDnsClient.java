@@ -7,14 +7,14 @@ import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 
 /**
-  Cliente UDP/DNS: reenvía el paquete DNS crudo (en bytes) al servidor remoto
-  configurado y retorna la respuesta cruda, sin necesidad de interpretar su
-  contenido, el paquete solo viaja como bytes de un extremo a otro
-  (BASE64 en los bordes HTTP, UDP crudo en el medio)
+ * Cliente UDP/DNS: reenvía el paquete DNS crudo (en bytes) al servidor remoto
+ * configurado y retorna la respuesta cruda, sin interpretar su contenido.
+ * El paquete viaja en BASE64 en los bordes HTTP y como UDP crudo en el medio.
+ *
+ * Cada llamada abre su propio socket, así que es seguro usarlo desde varios hilos.
  */
 public class UdpDnsClient {
 
-    // 4096 bytes 
     private static final int MAX_DNS_PACKET_SIZE = 4096;
 
     private final String remoteHost;
@@ -29,7 +29,7 @@ public class UdpDnsClient {
 
     /**
      * Envía {@code queryBytes} al servidor DNS remoto y devuelve la respuesta cruda.
-       @throws DnsResolutionException si hay timeout o error de red.
+     * @throws DnsResolutionException si hay timeout o error de red.
      */
     public byte[] resolve(byte[] queryBytes) throws DnsResolutionException {
         try (DatagramSocket socket = new DatagramSocket()) {
@@ -57,6 +57,7 @@ public class UdpDnsClient {
     }
 
     public static class DnsResolutionException extends Exception {
+        private static final long serialVersionUID = 1L;
         public DnsResolutionException(String message, Throwable cause) {
             super(message, cause);
         }
